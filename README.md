@@ -1,3 +1,13 @@
+---
+title: SIH26098 Guidance Sim
+emoji: 🚀
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # SIH26098 – Low-Cost Precision Guidance Kit (155 mm Artillery Shell) Simulation
 
 [![Deploy to Render](https://render.com/images/deploy-to-render.svg)](https://render.com/deploy?repo=https://github.com/srkself26-cmd/sih26098-guidance-sim)
