@@ -2,6 +2,8 @@ import os
 import sys
 import time
 import uuid
+import io
+import base64
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')  # Non-interactive backend
@@ -116,14 +118,18 @@ def simulate():
                                          guid_params, target_x, target_z)
         t_gui = time.time() - t0
         
-        # Generate plot files
-        plot_id = str(uuid.uuid4())[:8]
-        
+        # Define base64 helper for plots
+        def fig_to_base64(fig):
+            buf = io.BytesIO()
+            fig.savefig(buf, format='png', facecolor='#0f172a', edgecolor='none', dpi=120)
+            plt.close(fig)
+            buf.seek(0)
+            return "data:image/png;base64," + base64.b64encode(buf.read()).decode('utf-8')
+
         # PLOT 1: Side-by-side trajectories
-        fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-        # Style plots beautifully
+        fig_traj, axes = plt.subplots(1, 2, figsize=(12, 5))
         plt.style.use('dark_background')
-        fig.patch.set_facecolor('#0f172a')  # Slate 900
+        fig_traj.patch.set_facecolor('#0f172a')  # Slate 900
         for ax in axes:
             ax.set_facecolor('#1e293b')  # Slate 800
             ax.grid(True, color='#475569', alpha=0.3)
@@ -150,14 +156,12 @@ def simulate():
         ax.set_title('Guided Trajectories')
         ax.legend(facecolor='#1e293b', edgecolor='#475569', loc='upper right')
         
-        plt.tight_layout()
-        plot1_path = f'static/images/trajectories_{plot_id}.png'
-        plt.savefig(plot1_path, facecolor='#0f172a', dpi=120)
-        plt.close()
+        fig_traj.tight_layout()
+        plot1_b64 = fig_to_base64(fig_traj)
         
         # PLOT 2: CEP / Scatter comparison
-        fig, ax = plt.subplots(figsize=(8, 6.5))
-        fig.patch.set_facecolor('#0f172a')
+        fig_cep, ax = plt.subplots(figsize=(8, 6.5))
+        fig_cep.patch.set_facecolor('#0f172a')
         ax.set_facecolor('#1e293b')
         ax.grid(True, color='#475569', alpha=0.3)
         ax.tick_params(colors='#94a3b8')
@@ -180,15 +184,13 @@ def simulate():
         ax.set_title(f'CEP Reduction: {mc_ung["cep"]:.1f}m → {mc_gui["cep"]:.1f}m')
         ax.legend(facecolor='#1e293b', edgecolor='#475569', loc='upper right')
         ax.set_aspect('equal')
-        plt.tight_layout()
-        plot2_path = f'static/images/cep_{plot_id}.png'
-        plt.savefig(plot2_path, facecolor='#0f172a', dpi=120)
-        plt.close()
+        fig_cep.tight_layout()
+        plot2_b64 = fig_to_base64(fig_cep)
 
         # PLOT 3: Time Histories (guided run)
         traj = mc_gui['trajectories'][0]
-        fig, axes = plt.subplots(2, 2, figsize=(12, 8))
-        fig.patch.set_facecolor('#0f172a')
+        fig_hist, axes = plt.subplots(2, 2, figsize=(12, 8))
+        fig_hist.patch.set_facecolor('#0f172a')
         for row in axes:
             for sub_ax in row:
                 sub_ax.set_facecolor('#1e293b')
@@ -235,10 +237,8 @@ def simulate():
         axes[1, 1].set_ylabel('Ground Distance to Target (km)')
         axes[1, 1].set_title('Closing Distance')
         
-        plt.tight_layout()
-        plot3_path = f'static/images/histories_{plot_id}.png'
-        plt.savefig(plot3_path, facecolor='#0f172a', dpi=120)
-        plt.close()
+        fig_hist.tight_layout()
+        plot3_b64 = fig_to_base64(fig_hist)
 
         # Build stats response
         stats = {
@@ -263,9 +263,9 @@ def simulate():
             
             'improvement_x': round(mc_ung['cep'] / max(mc_gui['cep'], 0.1), 1),
             
-            'plot_trajectories': '/' + plot1_path,
-            'plot_cep': '/' + plot2_path,
-            'plot_histories': '/' + plot3_path
+            'plot_trajectories': plot1_b64,
+            'plot_cep': plot2_b64,
+            'plot_histories': plot3_b64
         }
         
         return jsonify({'success': True, 'stats': stats})

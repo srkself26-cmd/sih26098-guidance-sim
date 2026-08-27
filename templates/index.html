@@ -299,16 +299,14 @@
           document.getElementById('val_nom_apogee').innerText = stats.nominal_apogee_km;
           document.getElementById('val_nom_time').innerText = stats.nominal_time_s;
 
-          // Set plot images with timestamp parameter to bypass caching
-          const t = new Date().getTime();
-          
+          // Set plot images directly using inline Base64 data URIs
           const imgCep = document.getElementById('img_cep');
-          imgCep.src = stats.plot_cep + '?t=' + t;
+          imgCep.src = stats.plot_cep;
           imgCep.style.display = 'inline-block';
           document.getElementById('msg_cep').style.display = 'none';
 
-          document.getElementById('img_trajectories').src = stats.plot_trajectories + '?t=' + t;
-          document.getElementById('img_histories').src = stats.plot_histories + '?t=' + t;
+          document.getElementById('img_trajectories').src = stats.plot_trajectories;
+          document.getElementById('img_histories').src = stats.plot_histories;
         } else {
           alert('Simulation failed: ' + result.error);
         }
