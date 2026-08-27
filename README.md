@@ -1,5 +1,7 @@
 # SIH26098 – Low-Cost Precision Guidance Kit (155 mm Artillery Shell) Simulation
 
+[![Deploy to Render](https://render.com/images/deploy-to-render.svg)](https://render.com/deploy?repo=https://github.com/srkself26-cmd/sih26098-guidance-sim)
+
 Welcome to the **Precision Guidance Kit (PGK)** simulation project. This software models the flight of a standard 155 mm artillery shell and demonstrates how an add-on smart fuze kit—equipped with steerable steering fins (**canards**)—takes a shell that would normally drift hundreds of meters off-course due to wind and firing errors, and steers it to land within just a few meters of the target.
 
 ---

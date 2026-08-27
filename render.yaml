@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: sih26098-guidance-sim
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn web_app:app
+    plan: free
