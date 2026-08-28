@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIH26098 – Precision Guidance Kit (155mm Shell) Simulation</title>
+  <!-- Load Plotly.js CDN -->
+  <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="logo-container">
+      <div class="logo-badge">SIH26098</div>
+      <div>
+        <h1>Low-Cost Precision Guidance Kit</h1>
+        <div class="tagline">155 mm Artillery Shell Guidance & Ballistics Simulation Dashboard</div>
+      </div>
+    </div>
+    <div style="font-size: 0.75rem; color: var(--text-secondary); text-align: right;">
+      Model: 3-DOF RK4 Ballistic Integrator (WebAssembly Speed)<br>
+      Guidance: Proportional Navigation & ZEM Canard System (100% Client-Side)
+    </div>
+  </header>
+
+  <!-- Dashboard Container -->
+  <div class="dashboard-grid">
+
+    <!-- Left Pane: Parameters -->
+    <div class="glass-panel sidebar" style="position: relative;">
+      <!-- Loading Overlay inside sidebar or plot panel. We'll keep a loading overlay on the plot panel. -->
+      <h2 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-primary)">Simulation Control</h2>
+
+      <!-- Shell & Fire Parameters -->
+      <div class="section-title">Gun & Projectile</div>
+      
+      <div class="input-group">
+        <div class="input-label-row">
+          <span>Shell Mass</span>
+          <span class="input-val"><span id="lbl_mass">43.5</span> kg</span>
+        </div>
+        <input type="range" id="mass" min="40" max="48" step="0.5" value="43.5" oninput="updateVal('mass')">
+      </div>
+
+      <div class="input-group">
+        <div class="input-label-row">
+          <span>Muzzle Velocity</span>
+          <span class="input-val"><span id="lbl_muzzle_vel">827</span> m/s</span>
+        </div>
+        <input type="range" id="muzzle_vel" min="780" max="920" step="5" value="827" oninput="updateVal('muzzle_vel')">
+      </div>
+
+      <div class="input-group">
+        <div class="input-label-row">
+          <span>Launch Elevation</span>
+          <span class="input-val"><span id="lbl_elevation">43.0</span>°</span>
+        </div>
+        <input type="range" id="elevation" min="20" max="60" step="0.5" value="43.0" oninput="updateVal('elevation')">
+      </div>
+
+      <!-- Environment / Wind -->
+      <div class="section-title">Environment & Wind</div>
+      
+      <div class="numeric-row">
+        <div class="input-group">
+          <div class="input-label-row">
+            <span>Wind X (Along)</span>
+          </div>
+          <input type="number" id="wind_surface_x" value="2.0" step="0.5" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px; color: white; outline: none;">
+        </div>
+        <div class="input-group">
+          <div class="input-label-row">
+            <span>Wind Z (Cross)</span>
+          </div>
+          <input type="number" id="wind_surface_z" value="3.0" step="0.5" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px; color: white; outline: none;">
+        </div>
+      </div>
+
+      <!-- Guidance Kit -->
+      <div class="section-title">Canard Guidance (CCF)</div>
+      
+      <div class="input-group">
+        <div class="input-label-row">
+          <span>Max Canard Authority</span>
+          <span class="input-val"><span id="lbl_max_accel_g">5.0</span> g</span>
+        </div>
+        <input type="range" id="max_accel_g" min="2" max="10" step="0.5" value="5.0" oninput="updateVal('max_accel_g')">
+      </div>
+
+      <div class="input-group">
+        <div class="input-label-row">
+          <span>GNSS Lock Acquisition</span>
+          <span class="input-val"><span id="lbl_gnss_lock_time">5.0</span> s</span>
+        </div>
+        <input type="range" id="gnss_lock_time" min="0" max="15" step="0.5" value="5.0" oninput="updateVal('gnss_lock_time')">
+      </div>
+
+      <!-- Errors -->
+      <div class="section-title">Stochastic Error Sources (1-σ)</div>
+
+      <div class="input-group">
+        <div class="input-label-row">
+          <span>Muzzle Velocity Error</span>
+          <span class="input-val"><span id="lbl_mv_sigma">3.0</span> m/s</span>
+        </div>
+        <input type="range" id="mv_sigma" min="0.5" max="8.0" step="0.5" value="3.0" oninput="updateVal('mv_sigma')">
+      </div>
+
+      <div class="input-group">
+        <div class="input-label-row">
+          <span>Elevation Aim Error</span>
+          <span class="input-val"><span id="lbl_elev_sigma_mrad">0.5</span> mrad</span>
+        </div>
+        <input type="range" id="elev_sigma_mrad" min="0.1" max="2.0" step="0.1" value="0.5" oninput="updateVal('elev_sigma_mrad')">
+      </div>
+
+      <!-- Settings -->
+      <div class="section-title">Sim Resolution</div>
+
+      <div class="numeric-row">
+        <div class="input-group">
+          <div class="input-label-row">
+            <span>MC Runs</span>
+          </div>
+          <select id="n_runs" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px; color: white; outline: none;">
+            <option value="20">20 runs (Fast)</option>
+            <option value="50" selected>50 runs (Med)</option>
+            <option value="100">100 runs (Detailed)</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <div class="input-label-row">
+            <span>Step size (dt)</span>
+          </div>
+          <select id="dt" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px; color: white; outline: none;">
+            <option value="0.05" selected>0.05s (Fast Mode)</option>
+            <option value="0.03">0.03s (Balanced)</option>
+            <option value="0.01">0.01s (High Precision)</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn-run" onclick="runSimulation()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        RUN MONTE CARLO
+      </button>
+    </div>
+
+    <!-- Right Pane: Results -->
+    <div class="main-content">
+      
+      <!-- Stats Container -->
+      <div class="stats-container">
+        <!-- Unguided CEP -->
+        <div class="stat-card red">
+          <span class="stat-label">Unguided CEP</span>
+          <span class="stat-value"><span id="val_ung_cep">—</span> m</span>
+          <span class="stat-subtext">Max miss: <span id="val_ung_max">—</span> m</span>
+        </div>
+        
+        <!-- Guided CEP -->
+        <div class="stat-card green">
+          <span class="stat-label">Guided CEP</span>
+          <span class="stat-value"><span id="val_gui_cep">—</span> m</span>
+          <span class="stat-subtext">Max miss: <span id="val_gui_max">—</span> m</span>
+        </div>
+
+        <!-- Improvement Factor -->
+        <div class="stat-card blue">
+          <span class="stat-label">CEP Improvement</span>
+          <span class="stat-value"><span id="val_improvement">—</span>x</span>
+          <span class="stat-subtext">Requirement: &le; 30m CEP</span>
+        </div>
+
+        <!-- Nominal Stats -->
+        <div class="stat-card blue">
+          <span class="stat-label">Nominal Trajectory</span>
+          <span class="stat-value"><span id="val_nom_range">—</span> km</span>
+          <span class="stat-subtext">Apogee: <span id="val_nom_apogee">—</span> km | Flight: <span id="val_nom_time">—</span>s</span>
+        </div>
+      </div>
+
+      <!-- Plot Panel -->
+      <div class="glass-panel" style="position: relative; flex-grow: 1;">
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loader">
+          <div class="spinner"></div>
+          <div class="loading-text">Running 3-DOF Monte Carlo Simulations...</div>
+          <div class="loading-subtext">Solving RK4 ODE systems with wind and canard closed-loop control dynamics.</div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tab-container">
+          <div class="tab-headers">
+            <button class="tab-btn active" id="btn_tab_cep" onclick="switchTab(event, 'tab_cep')">CEP / Scatter Comparison</button>
+            <button class="tab-btn" id="btn_tab_trajectories" onclick="switchTab(event, 'tab_trajectories')">3D Trajectory Profiles</button>
+            <button class="tab-btn" id="btn_tab_histories" onclick="switchTab(event, 'tab_histories')">Time Histories (Guided)</button>
+          </div>
+
+          <!-- Tab Content 1: CEP Comparison -->
+          <div class="tab-content active" id="tab_cep">
+            <div id="plotly_cep" style="width: 100%; min-height: 480px; height: 100%;">
+              <div class="placeholder-msg" id="msg_cep">
+                <p style="color: var(--text-secondary); text-align: center; margin-top: 150px; font-size: 0.95rem;">
+                  Click "Run Monte Carlo" to start the simulation.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab Content 2: Trajectories -->
+          <div class="tab-content" id="tab_trajectories">
+            <div class="trajectories-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; width: 100%; min-height: 480px; height: 100%;">
+              <div id="plotly_trajectories_ung" style="width: 100%; height: 100%;"></div>
+              <div id="plotly_trajectories_gui" style="width: 100%; height: 100%;"></div>
+            </div>
+          </div>
+
+          <!-- Tab Content 3: Time Histories -->
+          <div class="tab-content" id="tab_histories">
+            <div class="histories-grid" style="display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 1rem; width: 100%; min-height: 520px; height: 100%;">
+              <div id="plotly_hist_pos" style="width: 100%; height: 100%;"></div>
+              <div id="plotly_hist_vel" style="width: 100%; height: 100%;"></div>
+              <div id="plotly_hist_guid" style="width: 100%; height: 100%;"></div>
+              <div id="plotly_hist_close" style="width: 100%; height: 100%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- JavaScript Simulator Code -->
+  <script>
+    // Slider values updates
+    function updateVal(id) {
+      document.getElementById('lbl_' + id).innerText = document.getElementById(id).value;
+    }
+
+    // Switch Tabs
+    function switchTab(evt, tabId) {
+      const tabBtns = document.getElementsByClassName('tab-btn');
+      for (let btn of tabBtns) {
+        btn.classList.remove('active');
+      }
+      const tabContents = document.getElementsByClassName('tab-content');
+      for (let content of tabContents) {
+        content.classList.remove('active');
+      }
+      evt.currentTarget.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+      
+      // Force Plotly to resize to the new visible container bounds
+      window.dispatchEvent(new Event('resize'));
+    }
+
+    // --- PHYSICS & BALLISTICS MATHEMATICS ---
+
+    // International Standard Atmosphere (ISA) air density
+    function airDensity(altitudeM) {
+      let alt = altitudeM < 0 ? 0.0 : altitudeM;
+      let T, p;
+      if (alt <= 11000.0) {
+        T = 288.15 - 0.0065 * alt;
+        p = 101325.0 * Math.pow(T / 288.15, 5.2559);
+      } else if (alt <= 20000.0) {
+        T = 216.65;
+        p = 22632.0 * Math.exp(-9.80665 * (alt - 11000.0) / 62192.1157);
+      } else {
+        T = 216.65;
+        p = 5475.05;
+      }
+      return p / (287.058 * T);
+    }
+
+    // Layered Wind Model class
+    class WindModel {
+      constructor(layers) {
+        this.layers = layers || [
+          [0,     2.0,  3.0],
+          [1000,  4.0,  6.0],
+          [3000,  6.0,  10.0],
+          [5000,  5.0,  8.0],
+          [8000,  3.0,  5.0]
+        ];
+      }
+      getWind(altitudeM) {
+        const layers = this.layers;
+        if (altitudeM <= layers[0][0]) {
+          return [layers[0][1], 0.0, layers[0][2]];
+        }
+        if (altitudeM >= layers[layers.length - 1][0]) {
+          return [layers[layers.length - 1][1], 0.0, layers[layers.length - 1][2]];
+        }
+        for (let i = 0; i < layers.length - 1; i++) {
+          const [a0, wx0, wz0] = layers[i];
+          const [a1, wx1, wz1] = layers[i + 1];
+          if (altitudeM >= a0 && altitudeM <= a1) {
+            const frac = (altitudeM - a0) / (a1 - a0);
+            const wx = wx0 + frac * (wx1 - wx0);
+            const wz = wz0 + frac * (wz1 - wz0);
+            return [wx, 0.0, wz];
+          }
+        }
+        return [0.0, 0.0, 0.0];
+      }
+    }
+
+    // Fourth-order Runge-Kutta step using inlined fast scalar math
+    function rk4Step(state, dt, mass, Cd0, refArea, g, wind, guidanceAccel) {
+      const [x, y, z, vx, vy, vz] = state;
+      const [wx, wy, wz] = wind;
+      const [gax, gay, gaz] = guidanceAccel;
+      const CdFactor = -0.5 * Cd0 * refArea / mass;
+
+      function getDerivs(yVal, vxVal, vyVal, vzVal) {
+        const vrx = vxVal - wx;
+        const vry = vyVal - wy;
+        const vrz = vzVal - wz;
+        const speed = Math.sqrt(vrx*vrx + vry*vry + vrz*vrz);
+        let ax, ay, az;
+        if (speed > 1e-6) {
+          const rho = airDensity(yVal);
+          const dragFactor = CdFactor * rho * speed;
+          ax = dragFactor * vrx + gax;
+          ay = dragFactor * vry - g + gay;
+          az = dragFactor * vrz + gaz;
+        } else {
+          ax = gax;
+          ay = -g + gay;
+          az = gaz;
+        }
+        return [vxVal, vyVal, vzVal, ax, ay, az];
+      }
+
+      // k1
+      const [dx1, dy1, dz1, dvx1, dvy1, dvz1] = getDerivs(y, vx, vy, vz);
+
+      // k2
+      const dtHalf = 0.5 * dt;
+      const [dx2, dy2, dz2, dvx2, dvy2, dvz2] = getDerivs(
+        y + dtHalf * dy1,
+        vx + dtHalf * dvx1,
+        vy + dtHalf * dvy1,
+        vz + dtHalf * dvz1
+      );
+
+      // k3
+      const [dx3, dy3, dz3, dvx3, dvy3, dvz3] = getDerivs(
+        y + dtHalf * dy2,
+        vx + dtHalf * dvx2,
+        vy + dtHalf * dvy2,
+        vz + dtHalf * dvz2
+      );
+
+      // k4
+      const [dx4, dy4, dz4, dvx4, dvy4, dvz4] = getDerivs(
+        y + dt * dy3,
+        vx + dt * dvx3,
+        vy + dt * dvy3,
+        vz + dt * dvz3
+      );
+
+      const dtSixth = dt / 6.0;
+      return [
+        x + dtSixth * (dx1 + 2.0*dx2 + 2.0*dx3 + dx4),
+        y + dtSixth * (dy1 + 2.0*dy2 + 2.0*dy3 + dy4),
+        z + dtSixth * (dz1 + 2.0*dz2 + 2.0*dz3 + dz4),
+        vx + dtSixth * (dvx1 + 2.0*dvx2 + 2.0*dvx3 + dvx4),
+        vy + dtSixth * (dvy1 + 2.0*dvy2 + 2.0*dvy3 + dvy4),
+        vz + dtSixth * (dvz1 + 2.0*dvz2 + 2.0*dvz3 + dvz4)
+      ];
+    }
+
+    // Single trajectory propagation
+    function propagateTrajectoryWind(mass, diameter, Cd0, muzzleVel, elevationRad, azimuthRad, dt, tMax, g, windModel, guidanceFunc) {
+      const refArea = Math.PI * Math.pow(diameter / 2.0, 2);
+      const vx0 = muzzleVel * Math.cos(elevationRad) * Math.cos(azimuthRad);
+      const vy0 = muzzleVel * Math.sin(elevationRad);
+      const vz0 = muzzleVel * Math.cos(elevationRad) * Math.sin(azimuthRad);
+
+      let state = [0.0, 0.0, 0.0, vx0, vy0, vz0];
+      let t = 0.0;
+
+      const historyT = [t];
+      const historyState = [[...state]];
+      const historyGuid = [[0.0, 0.0, 0.0]];
+
+      while (t < tMax) {
+        const wind = windModel.getWind(state[1] > 0.0 ? state[1] : 0.0);
+        let gAccel = [0.0, 0.0, 0.0];
+        if (guidanceFunc) {
+          gAccel = guidanceFunc(t, state);
+        }
+
+        state = rk4Step(state, dt, mass, Cd0, refArea, g, wind, gAccel);
+        t += dt;
+
+        historyT.push(t);
+        historyState.push([...state]);
+        historyGuid.push([...gAccel]);
+
+        if (state[1] <= 0.0 && t > 1.0) {
+          break;
+        }
+      }
+
+      return {
+        t: historyT,
+        x: historyState.map(s => s[0]),
+        y: historyState.map(s => s[1]),
+        z: historyState.map(s => s[2]),
+        vx: historyState.map(s => s[3]),
+        vy: historyState.map(s => s[4]),
+        vz: historyState.map(s => s[5]),
+        guid: historyGuid,
+        impact_x: historyState[historyState.length - 1][0],
+        impact_z: historyState[historyState.length - 1][2],
+        flight_time: t
+      };
+    }
+
+    // Seeded Random Mulberry32 algorithm
+    function mulberry32(a) {
+      return function() {
+        let t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      }
+    }
+
+    // Seeded Normal (Box-Muller) generator
+    function makeNormalGenerator(seed) {
+      const rand = mulberry32(seed);
+      return function(mean = 0, stdDev = 1) {
+        let u1 = rand();
+        let u2 = rand();
+        while (u1 <= 1e-15) u1 = rand();
+        const z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+        return mean + z * stdDev;
+      }
+    }
+
+    // Closed-loop Zero-Effort Miss Guidance function generator
+    function makeGuidanceFunc(guidParams, targetX, targetZ, g, dt, seed) {
+      const maxAccel = guidParams.max_accel_g * g;
+      const rng = makeNormalGenerator(seed);
+
+      let lastCmd = [0.0, 0.0, 0.0];
+      let lastUpdateT = -1.0;
+
+      return function(t, state) {
+        if (t < guidParams.gnss_lock_time) {
+          return [0.0, 0.0, 0.0];
+        }
+
+        const [x, y, z, vx, vy, vz] = state;
+        const dtUpdate = 1.0 / guidParams.update_rate;
+
+        if (t - lastUpdateT < dtUpdate) {
+          return [...lastCmd];
+        }
+
+        lastUpdateT = t;
+
+        // Add GNSS noise
+        const xMeas = x + rng(0, guidParams.gnss_noise_m);
+        const zMeas = z + rng(0, guidParams.gnss_noise_m);
+        const yMeas = y;
+
+        let tGo = 0.5;
+        if (yMeas > 10.0) {
+          const disc = vy*vy + 2.0 * g * yMeas;
+          if (disc > 0) {
+            tGo = (vy + Math.sqrt(disc)) / g;
+          } else {
+            tGo = 2.0;
+          }
+        }
+        tGo = Math.max(tGo, 0.5);
+
+        // Zero Effort Miss
+        const zemX = (xMeas + vx * tGo) - targetX;
+        const zemZ = (zMeas + vz * tGo) - targetZ;
+
+        // Proportional navigation commands (g-acceleration)
+        const azCmd = -guidParams.nav_gain_cross * zemZ / (0.5 * Math.pow(tGo, 2));
+        const ayCmd = -guidParams.nav_gain_range * zemX / (0.5 * Math.pow(tGo, 2));
+
+        let cmd = [0.0, ayCmd, azCmd];
+        const cmdMag = Math.sqrt(cmd[0]*cmd[0] + cmd[1]*cmd[1] + cmd[2]*cmd[2]);
+
+        if (cmdMag > maxAccel) {
+          const scale = maxAccel / cmdMag;
+          cmd = [cmd[0] * scale, cmd[1] * scale, cmd[2] * scale];
+        }
+
+        // Smoothed actuator response filter
+        const alpha = Math.min(dt / guidParams.cmd_tau, 1.0);
+        const filteredCmd = [
+          lastCmd[0] * (1 - alpha) + cmd[0] * alpha,
+          lastCmd[1] * (1 - alpha) + cmd[1] * alpha,
+          lastCmd[2] * (1 - alpha) + cmd[2] * alpha
+        ];
+        lastCmd = filteredCmd;
+
+        return filteredCmd;
+      }
+    }
+
+    // Circular Error Probable (CEP) Calculation (Median radial miss distance)
+    function computeCep(rangeErrors, crossErrors) {
+      const radii = [];
+      for (let i = 0; i < rangeErrors.length; i++) {
+        radii.push(Math.sqrt(rangeErrors[i]*rangeErrors[i] + crossErrors[i]*crossErrors[i]));
+      }
+      radii.sort((a, b) => a - b);
+      const mid = Math.floor(radii.length / 2);
+      if (radii.length % 2 !== 0) {
+        return radii[mid];
+      }
+      return (radii[mid - 1] + radii[mid]) / 2.0;
+    }
+
+    // Monte Carlo simulation loops
+    function runMonteCarlo(nRuns, shellBase, fireBase, dt, tMax, g, windBase, errors, guidParams, isGuided) {
+      // 1. Nominal flight (without perturbations)
+      const rNom = propagateTrajectoryWind(
+        shellBase.mass, shellBase.diameter, shellBase.Cd0, shellBase.muzzle_vel,
+        fireBase.elevation_rad, fireBase.azimuth_rad, dt, tMax, g, windBase, null
+      );
+      
+      const targetX = rNom.impact_x;
+      const targetZ = rNom.impact_z;
+
+      const rng = makeNormalGenerator(isGuided ? 123 : 42);
+      
+      const impactsX = [];
+      const impactsZ = [];
+      const trajectories = [];
+
+      for (let i = 0; i < nRuns; i++) {
+        // Perturb shell parameters
+        const mass = shellBase.mass + rng(0, errors.mass_sigma);
+        const Cd0 = shellBase.Cd0 * (1.0 + rng(0, errors.cd_sigma_pct / 100.0));
+        const muzzleVel = shellBase.muzzle_vel + rng(0, errors.mv_sigma);
+
+        // Perturb firing angles
+        const elev = fireBase.elevation_rad + rng(0, errors.elev_sigma_mrad * 1e-3);
+        const azim = fireBase.azimuth_rad + rng(0, errors.azim_sigma_mrad * 1e-3);
+
+        // Perturb wind profile layers
+        const perturbedLayers = windBase.layers.map(([alt, wx, wz]) => {
+          return [
+            alt,
+            wx + rng(0, errors.wind_sigma),
+            wz + rng(0, errors.wind_sigma)
+          ];
+        });
+        const wind = new WindModel(perturbedLayers);
+
+        // Set up guidance function
+        let guidanceFunc = null;
+        if (isGuided) {
+          guidanceFunc = makeGuidanceFunc(guidParams, targetX, targetZ, g, dt, i); // Unique seed per trajectory run
+        }
+
+        // Solve trajectory ODEs
+        const result = propagateTrajectoryWind(
+          mass, shellBase.diameter, Cd0, muzzleVel,
+          elev, azim, dt, tMax, g, wind, guidanceFunc
+        );
+
+        impactsX.push(result.impact_x);
+        impactsZ.push(result.impact_z);
+
+        // Store up to 15 trajectories for display rendering
+        if (i < 15) {
+          trajectories.push(result);
+        }
+      }
+
+      // Calculate errors relative to target
+      const rangeErr = impactsX.map(x => x - targetX);
+      const crossErr = impactsZ.map(z => z - targetZ);
+      const cep = computeCep(rangeErr, crossErr);
+
+      return {
+        impacts_x: impactsX,
+        impacts_z: impactsZ,
+        range_err: rangeErr,
+        cross_err: crossErr,
+        nom_x: targetX,
+        nom_z: targetZ,
+        cep: cep,
+        trajectories: trajectories,
+        r_nom: rNom
+      };
+    }
+
+    // --- MAIN EXECUTION HANDLER ---
+    function runSimulation() {
+      const loader = document.getElementById('loader');
+      loader.style.display = 'flex';
+
+      // Hide placeholder
+      document.getElementById('msg_cep').style.display = 'none';
+
+      // Let DOM paint loader before launching heavy computation
+      setTimeout(() => {
+        try {
+          // 1. Gather all slider parameters
+          const massVal = parseFloat(document.getElementById('mass').value);
+          const muzzleVelVal = parseFloat(document.getElementById('muzzle_vel').value);
+          const elevationDeg = parseFloat(document.getElementById('elevation').value);
+          const elevationRad = elevationDeg * Math.PI / 180.0;
+          
+          const windXVal = parseFloat(document.getElementById('wind_surface_x').value);
+          const windZVal = parseFloat(document.getElementById('wind_surface_z').value);
+          
+          const maxAccelG = parseFloat(document.getElementById('max_accel_g').value);
+          const lockTime = parseFloat(document.getElementById('gnss_lock_time').value);
+          
+          const mvSigmaVal = parseFloat(document.getElementById('mv_sigma').value);
+          const elevSigmaMradVal = parseFloat(document.getElementById('elev_sigma_mrad').value);
+          
+          const nRuns = parseInt(document.getElementById('n_runs').value);
+          const dtVal = parseFloat(document.getElementById('dt').value);
+
+          // Setup base configurations
+          const shellBase = { mass: massVal, diameter: 0.155, Cd0: 0.295, muzzle_vel: muzzleVelVal };
+          const fireBase = { elevation_rad: elevationRad, azimuth_rad: 0.0 };
+          const g = 9.80665;
+          const tMax = 120.0;
+
+          // Layered wind model (base wind scale relative to surface inputs)
+          const windBase = new WindModel([
+            [0,     windXVal,       windZVal],
+            [1000,  windXVal * 2,   windZVal * 2],
+            [3000,  windXVal * 3,   windZVal * 3],
+            [5000,  windXVal * 2.5, windZVal * 2.5],
+            [8000,  windXVal * 1.5, windZVal * 1.5]
+          ]);
+
+          // Stat errors (1-sigma)
+          const errors = {
+            mass_sigma: 0.5,
+            cd_sigma_pct: 3.0,
+            mv_sigma: mvSigmaVal,
+            elev_sigma_mrad: elevSigmaMradVal,
+            azim_sigma_mrad: 0.3,
+            wind_sigma: 2.0
+          };
+
+          // Guidance configurations
+          const guidParams = {
+            gnss_lock_time: lockTime,
+            max_accel_g: maxAccelG,
+            nav_gain_range: 3.0,
+            nav_gain_cross: 4.0,
+            cmd_tau: 0.2,
+            update_rate: 10.0,
+            gnss_noise_m: 3.0
+          };
+
+          const t0 = performance.now();
+
+          // 2. Run Unguided Monte Carlo
+          const mcUng = runMonteCarlo(nRuns, shellBase, fireBase, dtVal, tMax, g, windBase, errors, guidParams, false);
+
+          // 3. Run Guided Monte Carlo
+          const mcGui = runMonteCarlo(nRuns, shellBase, fireBase, dtVal, tMax, g, windBase, errors, guidParams, true);
+
+          const durationMs = performance.now() - t0;
+          console.log(`Simulation finished in ${durationMs.toFixed(1)} ms.`);
+
+          // --- UPDATE RESULTS UI ---
+          document.getElementById('val_ung_cep').innerText = mcUng.cep.toFixed(2);
+          document.getElementById('val_ung_max').innerText = Math.max(...mcUng.range_err.map((r, idx) => {
+            return Math.sqrt(r*r + mcUng.cross_err[idx]*mcUng.cross_err[idx]);
+          })).toFixed(2);
+
+          const guiCepVal = document.getElementById('val_gui_cep');
+          guiCepVal.innerText = mcGui.cep.toFixed(2);
+          if (mcGui.cep <= 30) {
+            guiCepVal.className = "text-green highlight-text";
+          } else {
+            guiCepVal.className = "text-red highlight-text";
+          }
+          document.getElementById('val_gui_max').innerText = Math.max(...mcGui.range_err.map((r, idx) => {
+            return Math.sqrt(r*r + mcGui.cross_err[idx]*mcGui.cross_err[idx]);
+          })).toFixed(2);
+
+          document.getElementById('val_improvement').innerText = (mcUng.cep / Math.max(mcGui.cep, 0.1)).toFixed(1);
+          document.getElementById('val_nom_range').innerText = (mcUng.r_nom.impact_x / 1000).toFixed(2);
+          document.getElementById('val_nom_apogee').innerText = (Math.max(...mcUng.r_nom.y) / 1000).toFixed(2);
+          document.getElementById('val_nom_time').innerText = mcUng.r_nom.flight_time.toFixed(1);
+
+          // --- PLOT 1: CEP SCATTER CHART ---
+          renderPlotCep(mcUng, mcGui);
+
+          // --- PLOT 2: TRAJECTORY COMPARISONS ---
+          renderPlotTrajectories(mcUng, mcGui);
+
+          // --- PLOT 3: GUIDED RUN HISTORIES ---
+          renderPlotHistories(mcGui, mcGui.nom_x, mcGui.nom_z, maxAccelG);
+
+        } catch (e) {
+          alert('Error during simulation calculation: ' + e.message);
+          console.error(e);
+        } finally {
+          loader.style.display = 'none';
+        }
+      }, 50);
+    }
+
+    // --- CHART PLOTTING ENGINE (PLOTLY) ---
+
+    function renderPlotCep(mcUng, mcGui) {
+      const theta = [];
+      const cx_ung = [], cy_ung = [];
+      const cx_gui = [], cy_gui = [];
+      const cx_req = [], cy_req = [];
+
+      for (let i = 0; i <= 200; i++) {
+        const th = (i / 200.0) * 2 * Math.PI;
+        theta.push(th);
+        cx_ung.push(mcUng.cep * Math.cos(th));
+        cy_ung.push(mcUng.cep * Math.sin(th));
+        cx_gui.push(mcGui.cep * Math.cos(th));
+        cy_gui.push(mcGui.cep * Math.sin(th));
+        cx_req.push(30.0 * Math.cos(th));
+        cy_req.push(30.0 * Math.sin(th));
+      }
+
+      const traceUngPoints = {
+        x: mcUng.range_err,
+        y: mcUng.cross_err,
+        mode: 'markers',
+        type: 'scatter',
+        name: `Unguided (CEP: ${mcUng.cep.toFixed(1)}m)`,
+        marker: { color: '#ef4444', size: 6, opacity: 0.5 }
+      };
+
+      const traceGuiPoints = {
+        x: mcGui.range_err,
+        y: mcGui.cross_err,
+        mode: 'markers',
+        type: 'scatter',
+        name: `Guided (CEP: ${mcGui.cep.toFixed(1)}m)`,
+        marker: { color: '#22c55e', size: 8, opacity: 0.8 }
+      };
+
+      const traceTarget = {
+        x: [0],
+        y: [0],
+        mode: 'markers',
+        type: 'scatter',
+        name: 'Target',
+        marker: { color: '#ffffff', symbol: 'cross', size: 14, line: { width: 2 } }
+      };
+
+      // Circles boundary
+      const traceUngCircle = {
+        x: cx_ung,
+        y: cy_ung,
+        mode: 'lines',
+        name: 'Unguided CEP Circle',
+        line: { color: '#ef4444', width: 1.5, dash: 'dash' },
+        showlegend: false
+      };
+
+      const traceGuiCircle = {
+        x: cx_gui,
+        y: cy_gui,
+        mode: 'lines',
+        name: 'Guided CEP Circle',
+        line: { color: '#22c55e', width: 2, dash: 'dash' },
+        showlegend: false
+      };
+
+      const traceReqCircle = {
+        x: cx_req,
+        y: cy_req,
+        mode: 'lines',
+        name: '30m Requirement Limit',
+        line: { color: '#3b82f6', width: 1.5, dash: 'dot' }
+      };
+
+      const data = [traceUngPoints, traceGuiPoints, traceTarget, traceUngCircle, traceGuiCircle, traceReqCircle];
+
+      const maxRange = Math.max(mcUng.cep * 1.5, 50.0); // Adjust zoom
+
+      const layout = {
+        title: {
+          text: `Circular Error Probable (CEP) Reduction: ${mcUng.cep.toFixed(1)}m &rarr; ${mcGui.cep.toFixed(1)}m`,
+          font: { color: '#f1f5f9', size: 15 }
+        },
+        paper_bgcolor: '#0f172a',
+        plot_bgcolor: '#1e293b',
+        xaxis: {
+          title: 'Range Error (m)',
+          color: '#94a3b8',
+          gridcolor: 'rgba(71,85,105,0.3)',
+          range: [-maxRange, maxRange],
+          zerolinecolor: 'rgba(71,85,105,0.6)'
+        },
+        yaxis: {
+          title: 'Cross-range Error (m)',
+          color: '#94a3b8',
+          gridcolor: 'rgba(71,85,105,0.3)',
+          range: [-maxRange, maxRange],
+          zerolinecolor: 'rgba(71,85,105,0.6)',
+          scaleanchor: 'x',
+          scaleratio: 1
+        },
+        legend: {
+          font: { color: '#94a3b8' },
+          bgcolor: 'rgba(30,41,59,0.7)',
+          bordercolor: 'rgba(71,85,105,0.4)',
+          borderwidth: 1
+        },
+        margin: { t: 50, b: 50, l: 50, r: 50 }
+      };
+
+      Plotly.newPlot('plotly_cep', data, layout, { responsive: true });
+    }
+
+    function renderPlotTrajectories(mcUng, mcGui) {
+      // Unguided Trajectories Plot
+      const tracesUng = [];
+      mcUng.trajectories.slice(0, 15).forEach((traj, idx) => {
+        tracesUng.push({
+          x: traj.x.map(val => val / 1000.0),
+          y: traj.y.map(val => val / 1000.0),
+          mode: 'lines',
+          line: { color: '#ef4444', width: 0.8 },
+          opacity: 0.4,
+          showlegend: false
+        });
+      });
+      // Add fake trace for legend representation
+      tracesUng.push({
+        x: [null],
+        y: [null],
+        mode: 'lines',
+        name: 'Unguided Paths',
+        line: { color: '#ef4444', width: 1.5 }
+      });
+
+      const layoutUng = {
+        title: { text: 'Unguided Flight Arcs', font: { color: '#f1f5f9', size: 14 } },
+        paper_bgcolor: '#0f172a',
+        plot_bgcolor: '#1e293b',
+        xaxis: { title: 'Downrange (km)', color: '#94a3b8', gridcolor: 'rgba(71,85,105,0.3)' },
+        yaxis: { title: 'Altitude (km)', color: '#94a3b8', gridcolor: 'rgba(71,85,105,0.3)' },
+        legend: { font: { color: '#94a3b8' } },
+        margin: { t: 40, b: 40, l: 50, r: 20 }
+      };
+
+      Plotly.newPlot('plotly_trajectories_ung', tracesUng, layoutUng, { responsive: true });
+
+      // Guided Trajectories Plot
+      const tracesGui = [];
+      mcGui.trajectories.slice(0, 15).forEach((traj, idx) => {
+        tracesGui.push({
+          x: traj.x.map(val => val / 1000.0),
+          y: traj.y.map(val => val / 1000.0),
+          mode: 'lines',
+          line: { color: '#22c55e', width: 0.8 },
+          opacity: 0.4,
+          showlegend: false
+        });
+      });
+      tracesGui.push({
+        x: [null],
+        y: [null],
+        mode: 'lines',
+        name: 'Guided Paths (CCF)',
+        line: { color: '#22c55e', width: 2 }
+      });
+
+      const layoutGui = {
+        title: { text: 'Guided Flight Arcs', font: { color: '#f1f5f9', size: 14 } },
+        paper_bgcolor: '#0f172a',
+        plot_bgcolor: '#1e293b',
+        xaxis: { title: 'Downrange (km)', color: '#94a3b8', gridcolor: 'rgba(71,85,105,0.3)' },
+        yaxis: { title: 'Altitude (km)', color: '#94a3b8', gridcolor: 'rgba(71,85,105,0.3)' },
+        legend: { font: { color: '#94a3b8' } },
+        margin: { t: 40, b: 40, l: 50, r: 20 }
+      };
+
+      Plotly.newPlot('plotly_trajectories_gui', tracesGui, layoutGui, { responsive: true });
+    }
+
+    function renderPlotHistories(mcGui, targetX, targetZ, maxAccelG) {
+      // Pick first guided run for profiling details
+      const traj = mcGui.trajectories[0];
+
+      // 1. Position Histories
+      const tracePosRange = {
+        x: traj.t,
+        y: traj.x.map(v => v / 1000.0),
+        mode: 'lines',
+        name: 'Downrange (km)',
+        line: { color: '#3b82f6', width: 1.5 }
+      };
+      const tracePosAlt = {
+        x: traj.t,
+        y: traj.y.map(v => v / 1000.0),
+        mode: 'lines',
+        name: 'Altitude (km)',
+        line: { color: '#f59e0b', width: 1.5 }
+      };
+      const tracePosCross = {
+        x: traj.t,
+        y: traj.z,
+        mode: 'lines',
+        name: 'Cross-range (m)',
+        line: { color: '#10b981', width: 1.5 }
+      };
+
+      const layoutPos = {
+        title: { text: 'Guided Trajectory Profile', font: { color: '#f1f5f9', size: 12 } },
+        paper_bgcolor: '#0f172a',
+        plot_bgcolor: '#1e293b',
+        xaxis: { title: 'Time (s)', color: '#94a3b8', gridcolor: 'rgba(71,85,105,0.2)' },
+        yaxis: { title: 'Position Units', color: '#94a3b8', gridcolor: 'rgba(71,85,105,0.2)' },
+        legend: { font: { color: '#94a3b8' }, bgcolor: 'rgba(30,41,59,0.5)' },
+        margin: { t: 30, b: 30, l: 40, r: 10 }
+      };
+      Plotly.newPlot('plotly_hist_pos', [tracePosRange, tracePosAlt, tracePosCross], layoutPos, { responsive: true });
+
+      // 2. Velocity Profile
+      const speeds = traj.t.map((_, i) => {
+        return Math.sqrt(traj.vx[i]*traj.vx[i] + traj.vy[i]*traj.vy[i] + traj.vz[i]*traj.vz[i]);
+      });
+
+      const traceVelTotal = {
+        x: traj.t,
+        y: speeds,
+        mode: 'lines',
+        name: 'Total Speed',
+        line: { color: '#6366f1', width: 1.5 }
+      };
+      const traceVelVx = {
+        x: traj.t,
+        y: traj.vx,
+        mode: 'lines',
+        name: 'Vx (along)',
+        line: { color: '#ec4899', width: 1, dash: 'dot' }
+      };
+      const traceVelVy = {
+        x: traj.t,
+        y: traj.vy,
+        mode: 'lines',
+        name: 'Vy (vert)',
+        line: { color: '#14b8a6', width: 1, dash: 'dot' }
+      };
+
+      const layoutVel = {
+        title: { text: 'Velocity Vectors', font: { color: '#f1f5f9', size: 12 } },
+        paper_bgcolor: '#0f172a',
+        plot_bgcolor: '#1e293b',
+        xaxis: { title: 'Time (s)', color: '#94a3b8', gridcolor: 'rgba(71,85,105,0.2)' },
+        yaxis: { title: 'Velocity (m/s)', color: '#94a3b8', gridcolor: 'rgba(71,85,105,0.2)' },
+        legend: { font: { color: '#94a3b8' }, bgcolor: 'rgba(30,41,59,0.5)' },
+        margin: { t: 30, b: 30, l: 40, r: 10 }
+      };
+      Plotly.newPlot('plotly_hist_vel', [traceVelTotal, traceVelVx, traceVelVy], layoutVel, { responsive: true });
+
+      // 3. Canard Guidance Commands
+      const g_total = traj.guid.map(cmd => {
+        return Math.sqrt(cmd[1]*cmd[1] + cmd[2]*cmd[2]) / 9.80665;
+      });
+
+      const traceGuidVert = {
+        x: traj.t,
+        y: traj.guid.map(cmd => cmd[1] / 9.80665),
+        mode: 'lines',
+        name: 'Vertical (g)',
+        line: { color: '#3b82f6', width: 1.2 }
+      };
+      const traceGuidLat = {
+        x: traj.t,
+        y: traj.guid.map(cmd => cmd[2] / 9.80665),
+        mode: 'lines',
+        name: 'Lateral (g)',
+        line: { color: '#ef4444', width: 1.2 }
+      };
+      const traceGuidTotal = {
+        x: traj.t,
+        y: g_total,
+        mode: 'lines',
+        name: '|Total| (g)',
+        line: { color: '#f1f5f9', width: 1.5, opacity: 0.5 }
+      };
+
+      const layoutGuid = {
+        title: { text: 'Guidance Control Commands', font: { color: '#f1f5f9', size: 12 } },
+        paper_bgcolor: '#0f172a',
+        plot_bgcolor: '#1e293b',
+        xaxis: { title: 'Time (s)', color: '#94a3b8', gridcolor: 'rgba(71,85,105,0.2)' },
+        yaxis: { title: 'Acceleration (g)', color: '#94a3b8', gridcolor: 'rgba(71,85,105,0.2)', range: [-maxAccelG * 1.2, maxAccelG * 1.2] },
+        legend: { font: { color: '#94a3b8' }, bgcolor: 'rgba(30,41,59,0.5)' },
+        margin: { t: 30, b: 30, l: 40, r: 10 }
+      };
+      Plotly.newPlot('plotly_hist_guid', [traceGuidVert, traceGuidLat, traceGuidTotal], layoutGuid, { responsive: true });
+
+      // 4. Closing distance
+      const distance = traj.t.map((_, i) => {
+        return Math.sqrt(Math.pow(traj.x[i] - targetX, 2) + Math.pow(traj.z[i] - targetZ, 2)) / 1000.0;
+      });
+
+      const traceClose = {
+        x: traj.t,
+        y: distance,
+        mode: 'lines',
+        name: 'Distance to Target',
+        line: { color: '#10b981', width: 1.8 }
+      };
+
+      const layoutClose = {
+        title: { text: 'Closing Range Profile', font: { color: '#f1f5f9', size: 12 } },
+        paper_bgcolor: '#0f172a',
+        plot_bgcolor: '#1e293b',
+        xaxis: { title: 'Time (s)', color: '#94a3b8', gridcolor: 'rgba(71,85,105,0.2)' },
+        yaxis: { title: 'Range to Target (km)', color: '#94a3b8', gridcolor: 'rgba(71,85,105,0.2)' },
+        margin: { t: 30, b: 30, l: 40, r: 10 }
+      };
+      Plotly.newPlot('plotly_hist_close', [traceClose], layoutClose, { responsive: true });
+    }
+  </script>
+</body>
+</html>
